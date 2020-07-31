@@ -12,5 +12,5 @@ app.get("/personsData", (req, res) => {
 app.get("*", (req, res) => {
     res.send(express.static(path.join(__dirname, './active_person_react/build/index.html')))
 })
-const port = 5000;
+const port = process.env.PORT || 5000;
 app.listen(port)
