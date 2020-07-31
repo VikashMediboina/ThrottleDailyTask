@@ -1,5 +1,4 @@
 import React, { Component } from 'react'
-import { dataResponse } from "../mockFile/mock_file"
 import Card from '@material-ui/core/Card';
 import CardHeader from '@material-ui/core/CardHeader';
 import Grid from '@material-ui/core/Grid';
@@ -13,6 +12,15 @@ import Typography from '@material-ui/core/Typography';
 import ArrowBackOutlinedIcon from '@material-ui/icons/ArrowBackOutlined';
 import Slide from '@material-ui/core/Slide';
 import ListOfTime from './list_of_time';
+import { postUserActiveData } from '../action/index'
+import { connect } from 'react-redux';
+import { bindActionCreators } from 'redux'
+import SupervisorAccountIcon from '@material-ui/icons/SupervisorAccount';
+import Backdrop from '@material-ui/core/Backdrop';
+import CircularProgress from '@material-ui/core/CircularProgress';
+import Snackbar from '@material-ui/core/Snackbar';
+import MuiAlert from '@material-ui/lab/Alert';
+
 
 const Transition = React.forwardRef(function Transition(props, ref) {
     return <Slide direction="up" ref={ref} {...props} />;
@@ -23,15 +31,26 @@ export class Home extends Component {
         super(props)
         this.state = {
             openModel: false,
-            data: {}
+            data: {},
+            responseData: {},
+            openLoader: true,
+            snackerror: false,
+            snackOpenSucess: false,
+        }
+    }
+    componentDidUpdate(prevProps) {
+        if (prevProps.data !== this.props.data) {
+            if (this.props.data.data === "error occured") {
+                this.setState({ snackerror: true, snackOpenSucess: false })
+            }
+            else {
+                this.setState({ responseData: this.props.data.data, openLoader: false, snackOpenSucess: true, snackerror: false })
+            }
         }
     }
     componentDidMount() {
-        console.log("ee")
-        fetch('/personsData').then(res =>
-            res.json()).then(data => {
-                console.log(data)
-            })
+        this.setState({ openLoader: true })
+        this.props.postUserActiveData()
     }
     routeCalender = (data) => {
         this.setState({ openModel: true, data: data })
@@ -39,13 +58,24 @@ export class Home extends Component {
     handleClose = () => {
         this.setState({ openModel: false })
     }
+    handleCloseSnack = () => {
+        this.setState({ snackOpenSucess: false, snackerror: false })
+    }
     render() {
+        const { responseData, openModel, data, openLoader, snackOpenSucess, snackerror } = this.state
         return (
             <div >
+                <AppBar >
+                    <Toolbar >
+                        <SupervisorAccountIcon></SupervisorAccountIcon>
+                            &nbsp;
+                        Memebers List
+                    </Toolbar>
+                </AppBar>
                 <Grid container>
-                    {dataResponse.members.map((data, index) => {
+                    {responseData.members && responseData.members.map((data, index) => {
                         return (
-                            <Grid item xs={12} md={6} key={data.id} onClick={() => this.routeCalender(data)}>
+                            <Grid item xs={12} md={6} key={data.id} className="personGrid" onClick={() => this.routeCalender(data)}>
                                 <Card className="person">
                                     <CardActionArea >
                                         <CardHeader
@@ -61,7 +91,20 @@ export class Home extends Component {
                         )
                     })}
                 </Grid>
-                {this.state.openModel && <Dialog fullScreen open={this.state.openModel} onClose={this.handleClose} TransitionComponent={Transition}>
+                <Snackbar open={snackerror} autoHideDuration={6000} onClose={this.handleCloseSnack}>
+                    <MuiAlert elevation={6} variant="filled" severity="error" >
+                        Network Issue
+                    </MuiAlert>
+                </Snackbar>
+                <Snackbar open={snackOpenSucess} autoHideDuration={1000} onClose={this.handleCloseSnack}>
+                    <MuiAlert elevation={6} variant="filled" severity="success" >
+                        Data Retrived
+                    </MuiAlert>
+                </Snackbar>
+                <Backdrop open={openLoader} >
+                    <CircularProgress color="inherit" />
+                </Backdrop>
+                {openModel && <Dialog fullScreen open={openModel} onClose={this.handleClose} TransitionComponent={Transition}>
                     <AppBar >
                         <Toolbar>
                             <IconButton edge="start" color="inherit" onClick={this.handleClose} aria-label="close">
@@ -71,19 +114,22 @@ export class Home extends Component {
                                 <CardHeader
                                     avatar={
                                         <Avatar  >
-                                            {this.state.data.real_name[0]}
+                                            {data.real_name[0]}
                                         </Avatar>}
-                                    title={this.state.data.real_name}
+                                    title={data.real_name}
                                 />
                             </Typography>
                         </Toolbar>
                     </AppBar>
-                    <div>adfefe</div>
-                    <ListOfTime events={this.state.data.activity_periods} timeZone={this.state.data.tz}></ListOfTime>
+                    <ListOfTime events={data.activity_periods} timeZone={data.tz}></ListOfTime>
                 </Dialog>}
             </div>
         )
     }
 }
-
-export default Home
+const mapStateToProps = (state) => {
+    return { data: state.data }
+}
+const mapDispatchToProps = (dispatch) =>
+    bindActionCreators({ postUserActiveData }, dispatch)
+export default connect(mapStateToProps, mapDispatchToProps)(Home)
